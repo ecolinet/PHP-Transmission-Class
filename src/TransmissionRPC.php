@@ -157,6 +157,7 @@ class TransmissionRPC
             $ids = array($ids);  // Convert $ids to an array if only a single id was passed
         }
         $request = array("ids" => $ids);
+
         return $this->request("torrent-reannounce", $request);
     }
 
@@ -167,11 +168,12 @@ class TransmissionRPC
      */
     public function verify($ids)
     {
-
         if(!is_array($ids)) {
             $ids = array($ids);  // Convert $ids to an array if only a single id was passed
         }
+
         $request = array("ids" => $ids);
+
         return $this->request("torrent-verify", $request);
     }
 
@@ -186,15 +188,19 @@ class TransmissionRPC
      */
     public function get($ids = array(), $fields = array())
     {
-
         if(!is_array($ids)) {
             $ids = array($ids);  // Convert $ids to an array if only a single id was passed
         }
-        if(count($fields) == 0) $fields = array("id", "name", "status", "doneDate", "haveValid", "totalSize");   // Defaults
+
+        if(count($fields) == 0) {
+            $fields = array("id", "name", "status", "doneDate", "haveValid", "totalSize");   // Defaults
+        }
+
         $request = array(
           "fields" => $fields,
-          "ids" => $ids
-       );
+          "ids"    => $ids
+        );
+
         return $this->request("torrent-get", $request);
     }
 
@@ -228,6 +234,7 @@ class TransmissionRPC
         if(!is_array($ids)) {
             $ids = array($ids);  // Convert $ids to an array if only a single id was passed
         }
+
         if(!isset($arguments['ids'])) {
             $arguments['ids'] = $ids;    // Any $ids given in $arguments overrides the method parameter
         }
@@ -305,6 +312,7 @@ class TransmissionRPC
         if(!is_array($ids)) {
             $ids = array($ids);  // Convert $ids to an array if only a single id was passed
         }
+
         $request = array(
             "ids" => $ids,
             "delete-local-data" => $delete_local_data
@@ -322,15 +330,15 @@ class TransmissionRPC
      */
     public function move($ids, $target_location, $move_existing_data = true)
     {
-
         if(!is_array($ids)) {
             $ids = array($ids);  // Convert $ids to an array if only a single id was passed
         }
+
         $request = array(
             "ids" => $ids,
             "location" => $target_location,
             "move" => $move_existing_data
-       );
+        );
 
         return $this->request("torrent-set-location", $request);
     }
@@ -412,6 +420,7 @@ class TransmissionRPC
                 return "Queued for download";
             }
         }
+
         return "Unknown";
     }
 
@@ -478,7 +487,8 @@ class TransmissionRPC
     {
         // Prepare and cast object to array
         $return_as_array = false;
-        $array = $object;
+        $array           = $object;
+
         if(!is_array($array)) {
             $array = (array) $array;
         }
@@ -504,6 +514,7 @@ class TransmissionRPC
                 unset($array[$index]);
             }
         }
+
         // Return array cast to object
         return $return_as_array ? $array : (object) $array;
     }
@@ -538,7 +549,7 @@ class TransmissionRPC
         $data = array(
             "method" => $method,
             "arguments" => $arguments
-       );
+        );
         $data = json_encode($data);
 
         // performs the HTTP POST
@@ -561,9 +572,11 @@ class TransmissionRPC
         $context  = stream_context_create($contextopts);  // Create the context for this request
         if($fp = fopen($this->url, 'r', false, $context)) {    // Open a filepointer to the data, and use fgets to get the result
             $response = '';
+
             while($row = fgets($fp)) {
               $response.= trim($row)."\n";
             }
+
             if($this->debug) {
                 echo "TRANSMISSIONRPC_DEBUG:: request(method=$method, ...):: POST Result: ".
                                     PHP_EOL . print_r($response, true);
