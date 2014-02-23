@@ -44,12 +44,6 @@ class TransmissionRPC
     const HTTP_UA = 'TransmissionRPC for PHP/0.3';
 
     /**
-     * Minimum PHP version required
-     * 5.2.10 implemented the required http stream ignore_errors option
-     */
-    const MIN_PHPVER = '5.2.10';
-
-    /**
      * The URL to the bittorent client you want to communicate with
      * the port (default: 9091) can be set in you Transmission preferences
      * @var string
