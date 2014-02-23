@@ -1,9 +1,11 @@
 <?php
 
+namespace Transmission;
+
 /**
  * This is the type of exception the TransmissionRPC class will throw
  */
-class TransmissionRPCException extends Exception
+class RPCException extends \Exception
 {
     /**
      * Exception: Invalid arguments

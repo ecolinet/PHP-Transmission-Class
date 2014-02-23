@@ -1,4 +1,6 @@
 <?php
+
+namespace Transmission;
 /**
  * Transmission bittorrent client/daemon RPC communication class
  * Copyright (C) 2010 Johan Adriaans <johan.adriaans@gmail.com>,
@@ -31,12 +33,12 @@
  *
  * Usage example:
  * <code>
- *   $rpc = new TransmissionRPC($rpc_url);
+ *   $rpc = new RPC($rpc_url);
  *   $result = $rpc->add_file($url_or_path_to_torrent, $target_folder);
  * </code>
  *
  */
-class TransmissionRPC
+class RPC
 {
     /**
      * User agent used in all http communication
@@ -114,6 +116,34 @@ class TransmissionRPC
     const RPC_LT_14_TR_STATUS_DOWNLOAD   = 4;
     const RPC_LT_14_TR_STATUS_SEED       = 8;
     const RPC_LT_14_TR_STATUS_STOPPED    = 16;
+
+    /**
+     * Takes the connection parameters
+     *
+     * TODO: Sanitize username, password, and URL
+     *
+     * @param string $url
+     * @param string $username
+     * @param string $password
+     */
+    public function __construct($url = 'http://localhost:9091/transmission/rpc', $username = null, $password = null, $return_as_array = false)
+    {
+        // server URL
+        $this->url = $url;
+
+        // Username & password
+        $this->username = $username;
+        $this->password = $password;
+
+        // Return As Array
+        $this->return_as_array = $return_as_array;
+
+        // Reset X-Transmission-Session-Id so we (re)fetch one
+        $this->session_id = null;
+
+        // Get the Transmission RPC_version
+        $this->rpc_version = 15; //self::sget()->arguments->rpc_version;
+    }
 
     /**
      * Start one or more torrents
@@ -358,9 +388,9 @@ class TransmissionRPC
      *
      * @returns array of session information
      */
-    public function sget()
+    public function sget(array $data = array())
     {
-        return $this->request("session-get", array());
+        return $this->request("session-get", $data);
     }
 
     /**
@@ -526,24 +556,24 @@ class TransmissionRPC
      * @param array arguments The request arguments
      * @returns array The request result
      */
-    protected function request($method, $arguments)
+    public function request($method, $arguments)
     {
         // Check the parameters
         if(!is_scalar($method)) {
-            throw new TransmissionRPCException('Method name has no scalar value', TransmissionRPCException::E_INVALIDARG);
+            throw new RPCException('Method name has no scalar value', RPCException::E_INVALIDARG);
         }
         if(!is_array($arguments)) {
-            throw new TransmissionRPCException('Arguments must be given as array', TransmissionRPCException::E_INVALIDARG);
+            throw new RPCException('Arguments must be given as array', RPCException::E_INVALIDARG);
         }
 
         $arguments = $this->cleanRequestData($arguments); // Sanitize input
 
         // Grab the X-Transmission-Session-Id if we don't have it already
-        if(!$this->session_id) {
+        /*if(!$this->session_id) {
             if(!$this->GetSessionID()) {
-                throw new TransmissionRPCException('Unable to acquire X-Transmission-Session-Id', TransmissionRPCException::E_SESSIONID);
+                throw new RPCException('Unable to acquire X-Transmission-Session-Id', RPCException::E_SESSIONID);
             }
-        }
+        }*/
 
         // Build (and encode) request array
         $data = array(
@@ -553,7 +583,7 @@ class TransmissionRPC
         $data = json_encode($data);
 
         // performs the HTTP POST
-        $contextopts = $this->default_context_opts; // Start with the defaults
+        /*$contextopts = $this->default_context_opts; // Start with the defaults
         $contextopts['http']['method'] = 'POST';
         $contextopts['http']['header'] = 'Content-type: application/json'."\r\n".
                                          'X-Transmission-Session-Id: '.$this->session_id."\r\n";
@@ -582,7 +612,7 @@ class TransmissionRPC
                                     PHP_EOL . print_r($response, true);
             }
         } else {
-            throw new TransmissionRPCException('Unable to connect to '.$this->url, TransmissionRPCException::E_CONNECTION);
+            throw new RPCException('Unable to connect to '.$this->url, RPCException::E_CONNECTION);
         }
 
         // Check the response (headers etc)
@@ -594,14 +624,25 @@ class TransmissionRPC
         }
 
         if($stream_meta['timed_out']) {
-            throw new TransmissionRPCException("Timed out connecting to {$this->url}", TransmissionRPCException::E_CONNECTION);
+            throw new RPCException("Timed out connecting to {$this->url}", RPCException::E_CONNECTION);
         }
         if(substr($stream_meta['wrapper_data'][0], 9, 3) == "401") {
-            throw new TransmissionRPCException("Invalid username/password.", TransmissionRPCException::E_AUTHENTICATION);
+            throw new RPCException("Invalid username/password.", RPCException::E_AUTHENTICATION);
         }
         elseif(substr($stream_meta['wrapper_data'][0], 9, 3) == "409") {
-            throw new TransmissionRPCException("Invalid X-Transmission-Session-Id. Please try again after calling GetSessionID().", TransmissionRPCException::E_SESSIONID);
-        }
+            throw new RPCException("Invalid X-Transmission-Session-Id. Please try again after calling GetSessionID().", RPCException::E_SESSIONID);
+        }*/
+
+        $connection = new Connection;
+        $connection
+            ->setLogin($this->username)
+            ->setPassword($this->password)
+            ->setUrl($this->url)
+            ->setUserAgent(self::HTTP_UA)
+            ->setPost($data)
+            ;
+
+        $response = $connection->call();
 
         return $this->return_as_array ? json_decode($response, true) : $this->cleanResultObject(json_decode($response));  // Return the sanitized result
     }
@@ -612,10 +653,10 @@ class TransmissionRPC
      *
      * @return string
      */
-    public function GetSessionID()
+    /*public function GetSessionID()
     {
         if(!$this->url) {
-            throw new TransmissionRPCException("Class must be initialized before GetSessionID() can be called.", TransmissionRPCException::E_INVALIDARG);
+            throw new RPCException("Class must be initialized before GetSessionID() can be called.", RPCException::E_INVALIDARG);
         }
 
         // Setup the context
@@ -637,7 +678,7 @@ class TransmissionRPC
         $context  = stream_context_create($contextopts);  // Create the context for this request
         if(! $fp = @fopen($this->url, 'r', false, $context)) {
             // Open a filepointer to the data, and use fgets to get the result
-            throw new TransmissionRPCException('Unable to connect to '.$this->url, TransmissionRPCException::E_CONNECTION);
+            throw new RPCException('Unable to connect to '.$this->url, RPCException::E_CONNECTION);
         }
 
         // Check the response (headers etc)
@@ -649,11 +690,11 @@ class TransmissionRPC
         }
 
         if($stream_meta['timed_out']) {
-            throw new TransmissionRPCException("Timed out connecting to {$this->url}", TransmissionRPCException::E_CONNECTION);
+            throw new RPCException("Timed out connecting to {$this->url}", RPCException::E_CONNECTION);
         }
 
         if(substr($stream_meta['wrapper_data'][0], 9, 3) == "401") {
-            throw new TransmissionRPCException("Invalid username/password.", TransmissionRPCException::E_AUTHENTICATION);
+            throw new RPCException("Invalid username/password.", RPCException::E_AUTHENTICATION);
         }
         elseif(substr($stream_meta['wrapper_data'][0], 9, 3) == "409") { // This is what we're hoping to find
             // Loop through the returned headers and extract the X-Transmission-Session-Id
@@ -668,39 +709,11 @@ class TransmissionRPC
                 }
             }
             if(! $this->session_id) {   // Didn't find a session_id
-                throw new TransmissionRPCException("Unable to retrieve X-Transmission-Session-Id", TransmissionRPCException::E_SESSIONID);
+                throw new RPCException("Unable to retrieve X-Transmission-Session-Id", RPCException::E_SESSIONID);
             }
         } else {
-            throw new TransmissionRPCException("Unexpected response from Transmission RPC: ".$stream_meta['wrapper_data'][0]);
+            throw new RPCException("Unexpected response from Transmission RPC: ".$stream_meta['wrapper_data'][0]);
         }
         return $this->session_id;
-    }
-
-    /**
-     * Takes the connection parameters
-     *
-     * TODO: Sanitize username, password, and URL
-     *
-     * @param string $url
-     * @param string $username
-     * @param string $password
-     */
-    public function __construct($url = 'http://localhost:9091/transmission/rpc', $username = null, $password = null, $return_as_array = false)
-    {
-        // server URL
-        $this->url = $url;
-
-        // Username & password
-        $this->username = $username;
-        $this->password = $password;
-
-        // Return As Array
-        $this->return_as_array = $return_as_array;
-
-        // Reset X-Transmission-Session-Id so we (re)fetch one
-        $this->session_id = null;
-
-        // Get the Transmission RPC_version
-        $this->rpc_version = self::sget()->arguments->rpc_version;
-    }
+    }*/
 }
