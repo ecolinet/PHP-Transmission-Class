@@ -1,0 +1,17 @@
+{
+    "name" : "ecolinet/PHP-Transmission",
+    "description": "PHP Class to access transmission",
+    "keywords": ["Transmission"],
+    "homepage": "https://github.com/ecolinet/PHP-Transmission-Class",
+    "type": "library",
+    "license": "GPL-3.0",
+    "autoload": {
+        "psr-4": { 
+            "Transmission\\": "src/" 
+        }
+    },
+    "require": {
+        "php": ">=5.3",
+        "ext-curl": "*"
+    }
+}
